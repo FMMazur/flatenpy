@@ -102,7 +102,8 @@ class FlattenFolder:
         """
         return self.lock.locked()
 
-    def split_chunks(self, path, max_threads):
+    @staticmethod
+    def split_chunks(path, max_threads):
         """
         Split a directory into chunks
         """
