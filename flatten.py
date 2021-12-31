@@ -7,11 +7,16 @@ class FlattenFolder:
     """
     Flatten a directory
     """
-    def __init__(self, path, target):
-        self.path = path
+    def __init__(self, dirpath, target, _async=True):
+        self.path = dirpath
         self.target = target
 
-        self.done = False
+        if _async:
+          self.done = False
+          self.lock = threading.Lock()
+          self.threads = []
+          self.threads_done = []
+          self.filesDone = queue.Queue()
 
     def create_target(self):
         """
@@ -27,20 +32,20 @@ class FlattenFolder:
 
         self.create_target()
 
-        status = []
+        _status = []
 
-        for root, dirs, files in walk(self.path):
+        for root, _dirs, files in walk(self.path):
             for file in files:
                 new_file = path.join(self.target, file)
                 old_file = path.join(root, file)
 
                 if not path.exists(new_file):
                     copyfile(old_file, new_file)
-                    status.append((old_file, new_file, True))
+                    _status.append((old_file, new_file, True))
                 else:
-                    status.append((old_file, new_file, False))
+                    _status.append((old_file, new_file, False))
 
-        return status
+        return _status
 
     def flatAsync(self):
         """
@@ -109,7 +114,7 @@ class FlattenFolder:
         """
 
         chunks = []
-        for root, dirs, files in walk(path):
+        for root, _dirs, files in walk(path):
             for file in files:
                 chunks.append(root)
                 break
@@ -130,8 +135,8 @@ class FlattenFolder:
 
         # if chunk is a list
         if isinstance(chunk, list):
-            for path in chunk:
-                self.walk_copy(path)
+            for _path in chunk:
+                self.walk_copy(_path)
         else:
             self.walk_copy(chunk)
 
@@ -139,13 +144,13 @@ class FlattenFolder:
         self.threads_done.append(thread_id)
         self.lock.release()
 
-    def walk_copy(self, path):
-        for root, dirs, files in walk(path):
+    def walk_copy(self, _path):
+        for root, _dirs, files in walk(_path):
             for file in files:
-                new_file = path.join(self.target, file)
-                old_file = path.join(root, file)
+                new_file = _path.join(self.target, file)
+                old_file = _path.join(root, file)
 
-                canCopy = not path.exists(new_file)
+                canCopy = not _path.exists(new_file)
 
                 # enqueue the result
                 self.filesDone.put((old_file, new_file, canCopy))
