@@ -1,24 +1,31 @@
-from os import path, walk, makedirs, sched_getaffinity
+import os
 from shutil import copyfile
 import threading
 import queue
+
 
 class FlattenFolder:
     """
     Flatten a directory
     """
-    def __init__(self, path, target):
-        self.path = path
+
+    def __init__(self, dirpath, target, maybeAsync=True):
+        self.path = dirpath
         self.target = target
 
-        self.done = False
+        if maybeAsync:
+            self.done = False
+            self.lock = threading.Lock()
+            self.threads = []
+            self.threads_done = []
+            self.filesDone = queue.Queue()
 
     def create_target(self):
         """
         Create target directory
         """
-        if not path.exists(self.target):
-            makedirs(self.target)
+        if not os.path.exists(self.target):
+            os.makedirs(self.target)
 
     def flat(self):
         """
@@ -27,20 +34,20 @@ class FlattenFolder:
 
         self.create_target()
 
-        status = []
+        _status = []
 
-        for root, dirs, files in walk(self.path):
+        for root, _dirs, files in os.walk(self.path):
             for file in files:
-                new_file = path.join(self.target, file)
-                old_file = path.join(root, file)
+                new_file = os.path.join(self.target, file)
+                old_file = os.path.join(root, file)
 
-                if not path.exists(new_file):
+                if not os.path.exists(new_file):
                     copyfile(old_file, new_file)
-                    status.append((old_file, new_file, True))
+                    _status.append((old_file, new_file, True))
                 else:
-                    status.append((old_file, new_file, False))
+                    _status.append((old_file, new_file, False))
 
-        return status
+        return _status
 
     def flatAsync(self):
         """
@@ -49,7 +56,7 @@ class FlattenFolder:
 
         self.create_target()
         # get max number of threads
-        max_threads = len(sched_getaffinity(0))
+        max_threads = len(os.sched_getaffinity(0))
 
         # create a queue to store the results
         self.filesDone = queue.Queue()
@@ -66,9 +73,9 @@ class FlattenFolder:
         # create a thread for each chunk
         for chunk in chunks:
             if len(chunk) > 0:
-              t = threading.Thread(target=self.flat_chunk, args=[chunk])
-              self.threads.append(t)
-              t.start()
+                t = threading.Thread(target=self.flat_chunk, args=[chunk])
+                self.threads.append(t)
+                t.start()
 
     def is_running(self):
         """
@@ -79,7 +86,6 @@ class FlattenFolder:
         if self.threads:
             # check if all threads are done
             return len(self.threads) == len(self.threads_done) or self.filesDone.qsize() > 0
-
 
         # if sync flatten is running
         if self.filesDone:
@@ -109,14 +115,15 @@ class FlattenFolder:
         """
 
         chunks = []
-        for root, dirs, files in walk(path):
-            for file in files:
+        for root, _dirs, files in os.walk(path):
+            for _file in files:
                 chunks.append(root)
                 break
 
         # if there are more chunks than max_threads, create chunks in chunks
         if len(chunks) > max_threads:
-            chunks = [chunks[i:i + max_threads] for i in range(0, len(chunks), max_threads)]
+            chunks = [chunks[i:i + max_threads]
+                     for i in range(0, len(chunks), max_threads)]
 
         return chunks
 
@@ -130,8 +137,8 @@ class FlattenFolder:
 
         # if chunk is a list
         if isinstance(chunk, list):
-            for path in chunk:
-                self.walk_copy(path)
+            for _path in chunk:
+                self.walk_copy(_path)
         else:
             self.walk_copy(chunk)
 
@@ -140,18 +147,19 @@ class FlattenFolder:
         self.lock.release()
 
     def walk_copy(self, path):
-        for root, dirs, files in walk(path):
+        for root, _dirs, files in os.walk(path):
             for file in files:
-                new_file = path.join(self.target, file)
-                old_file = path.join(root, file)
+                new_file = os.path.join(self.target, file)
+                old_file = os.path.join(root, file)
 
-                canCopy = not path.exists(new_file)
+                canCopy = not os.path.exists(new_file)
 
                 # enqueue the result
                 self.filesDone.put((old_file, new_file, canCopy))
 
                 if canCopy:
-                    copyfile(old_file, new_file)            
+                    copyfile(old_file, new_file)
+
 
 if __name__ == '__main__':
     import sys
