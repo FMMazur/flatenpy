@@ -87,10 +87,6 @@ class FlattenFolder:
             # check if all threads are done
             return len(self.threads) == len(self.threads_done) or self.filesDone.qsize() > 0
 
-        # if sync flatten is running
-        if self.filesDone:
-            return True
-
         return False
 
     def join(self):
