@@ -3,20 +3,22 @@ from shutil import copyfile
 import threading
 import queue
 
+
 class FlattenFolder:
     """
     Flatten a directory
     """
+
     def __init__(self, dirpath, target, _async=True):
         self.path = dirpath
         self.target = target
 
         if _async:
-          self.done = False
-          self.lock = threading.Lock()
-          self.threads = []
-          self.threads_done = []
-          self.filesDone = queue.Queue()
+            self.done = False
+            self.lock = threading.Lock()
+            self.threads = []
+            self.threads_done = []
+            self.filesDone = queue.Queue()
 
     def create_target(self):
         """
@@ -71,9 +73,9 @@ class FlattenFolder:
         # create a thread for each chunk
         for chunk in chunks:
             if len(chunk) > 0:
-              t = threading.Thread(target=self.flat_chunk, args=[chunk])
-              self.threads.append(t)
-              t.start()
+                t = threading.Thread(target=self.flat_chunk, args=[chunk])
+                self.threads.append(t)
+                t.start()
 
     def is_running(self):
         """
@@ -84,7 +86,6 @@ class FlattenFolder:
         if self.threads:
             # check if all threads are done
             return len(self.threads) == len(self.threads_done) or self.filesDone.qsize() > 0
-
 
         # if sync flatten is running
         if self.filesDone:
@@ -121,7 +122,8 @@ class FlattenFolder:
 
         # if there are more chunks than max_threads, create chunks in chunks
         if len(chunks) > max_threads:
-            chunks = [chunks[i:i + max_threads] for i in range(0, len(chunks), max_threads)]
+            chunks = [chunks[i:i + max_threads]
+                      for i in range(0, len(chunks), max_threads)]
 
         return chunks
 
@@ -156,7 +158,8 @@ class FlattenFolder:
                 self.filesDone.put((old_file, new_file, canCopy))
 
                 if canCopy:
-                    copyfile(old_file, new_file)            
+                    copyfile(old_file, new_file)
+
 
 if __name__ == '__main__':
     import sys
