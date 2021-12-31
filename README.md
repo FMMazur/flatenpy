@@ -1,4 +1,4 @@
-# flatenpy
+# flattenpy
 A utility class to flat directories from path to target
 
 > Async Example
